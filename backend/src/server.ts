@@ -1,11 +1,21 @@
 import express from "express";
 import db from "./database";
+import cors from "cors";
 
 const app = express();
 
 const PORT = 3000;
 
+app.use(cors());
 app.use(express.json());
+
+function formatTask(task: any) {
+  return {
+    id: task.id,
+    title: task.title,
+    completed: Boolean(task.completed)
+  };
+}
 
 app.get("/", (req, res) => {
   res.json({
@@ -24,7 +34,7 @@ app.get("/api/tasks", (req, res) => {
     .prepare("SELECT * FROM tasks ORDER BY id DESC")
     .all();
 
-  res.json(tasks);
+  res.json(tasks.map(formatTask));
 });
 
 app.post("/api/tasks", (req, res) => {
@@ -49,7 +59,7 @@ app.post("/api/tasks", (req, res) => {
     .prepare("SELECT * FROM tasks WHERE id = ?")
     .get(result.lastInsertRowid);
 
-  res.status(201).json(newTask);
+  res.status(201).json(formatTask(newTask));
 });
 
 app.patch("/api/tasks/:id", (req, res) => {
@@ -58,7 +68,11 @@ app.patch("/api/tasks/:id", (req, res) => {
 
   const existingTask = db
     .prepare("SELECT * FROM tasks WHERE id = ?")
-    .get(taskId);
+    .get(taskId) as {
+      id: number;
+      title: string;
+      completed: number;
+    } | undefined;
 
   if (!existingTask) {
     res.status(404).json({
@@ -88,7 +102,7 @@ app.patch("/api/tasks/:id", (req, res) => {
     .prepare("SELECT * FROM tasks WHERE id = ?")
     .get(taskId);
 
-  res.json(updatedTask);
+  res.json(formatTask(updatedTask));
 });
 
 app.listen(PORT, () => {
