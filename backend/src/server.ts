@@ -52,6 +52,45 @@ app.post("/api/tasks", (req, res) => {
   res.status(201).json(newTask);
 });
 
+app.patch("/api/tasks/:id", (req, res) => {
+  const taskId = Number(req.params.id);
+  const { title, completed } = req.body;
+
+  const existingTask = db
+    .prepare("SELECT * FROM tasks WHERE id = ?")
+    .get(taskId);
+
+  if (!existingTask) {
+    res.status(404).json({
+      message: "Tarea no encontrada"
+    });
+
+    return;
+  }
+
+  if (title !== undefined) {
+    db.prepare(`
+      UPDATE tasks
+      SET title = ?
+      WHERE id = ?
+    `).run(title, taskId);
+  }
+
+  if (completed !== undefined) {
+    db.prepare(`
+      UPDATE tasks
+      SET completed = ?
+      WHERE id = ?
+    `).run(completed ? 1 : 0, taskId);
+  }
+
+  const updatedTask = db
+    .prepare("SELECT * FROM tasks WHERE id = ?")
+    .get(taskId);
+
+  res.json(updatedTask);
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
 });
