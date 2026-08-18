@@ -1,18 +1,11 @@
 import express from "express";
+import db from "./database";
 
 const app = express();
 
 const PORT = 3000;
 
 app.use(express.json());
-
-interface Task {
-  id: number;
-  title: string;
-  completed: boolean;
-}
-
-const tasks: Task[] = [];
 
 app.get("/", (req, res) => {
   res.json({
@@ -26,25 +19,37 @@ app.get("/api/hello", (req, res) => {
   });
 });
 
+app.get("/api/tasks", (req, res) => {
+  const tasks = db
+    .prepare("SELECT * FROM tasks ORDER BY id DESC")
+    .all();
+
+  res.json(tasks);
+});
+
 app.post("/api/tasks", (req, res) => {
   const { title } = req.body;
 
-  const newTask: Task = {
-    id: tasks.length + 1,
-    title,
-    completed: false
-  };
+  if (!title || typeof title !== "string") {
+    res.status(400).json({
+      message: "El título es obligatorio"
+    });
 
-  tasks.push(newTask);
+    return;
+  }
 
-  res.status(201).json({
-    message: "Tarea creada correctamente",
-    task: newTask
-  });
-});
+  const result = db
+    .prepare(`
+      INSERT INTO tasks (title, completed)
+      VALUES (?, ?)
+    `)
+    .run(title, 0);
 
-app.get("/api/tasks", (req, res) => {
-  res.json(tasks);
+  const newTask = db
+    .prepare("SELECT * FROM tasks WHERE id = ?")
+    .get(result.lastInsertRowid);
+
+  res.status(201).json(newTask);
 });
 
 app.listen(PORT, () => {
